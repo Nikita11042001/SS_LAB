@@ -1,3 +1,12 @@
+/*
+============================================================================
+Name : 20.c
+Author : Nikita Gupta
+Description : Write two programs so that both can communicate by FIFO -Use one way communication.
+Date : 31th Aug, 2023.
+
+============================================================================
+*/
 #include <sys/types.h> // Import for `open`
 #include <sys/stat.h>  // Import for `open`
 #include <fcntl.h>     // Import for `open`
