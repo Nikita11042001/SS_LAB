@@ -1,3 +1,13 @@
+/*
+============================================================================
+Name : 14.c
+Author : Nikita Gupta
+Description : Write a simple program to create a pipe, write to the pipe, read from pipe and display on
+              the monitor.
+Date: 29th Aug, 2023.
+============================================================================
+*/
+
 #include <unistd.h>    // Import for `pipe``, `fork`, `execl` & `fcntl`
 #include <sys/types.h> // Import `fork`
 #include <fcntl.h>     // Import for `fcntl`
@@ -6,8 +16,8 @@
 void main()
 {
     // File descriptor used for pipe operations
-    int pipefd[2];  // pipefd[0] -> read, pipefd[1] -> write
-    int pipeStatus; // // Variable used to determine success of `pipe` call
+    int pipefd[2];                // pipefd[0] -> read, pipefd[1] -> write
+    int pipeStatus;               // Variable used to determine success of `pipe` call
     pid_t childPid;
 
     pipeStatus = pipe(pipefd);
