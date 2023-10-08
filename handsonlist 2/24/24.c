@@ -1,3 +1,13 @@
+/*
+============================================================================
+Name : 24.c
+Author : Nikita Gupta
+Description : Write a program to create a message queue and print the key
+	      and message queue id
+Date : 2nd Oct, 2023.
+============================================================================
+*/
+
 #include <sys/types.h> // Import for `ftok` & `msgget`
 #include <sys/ipc.h>   // Import for `ftok` & `msgget`
 #include <sys/msg.h>   // Import for `msgget`
