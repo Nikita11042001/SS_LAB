@@ -1,3 +1,15 @@
+/*
+============================================================================
+Name : 17.c
+Author : Nikita Gupta
+Description : Write a program to execute ls -l | wc.
+              a. use dup
+              b. use dup2
+              c. use fcntl
+        Date: 31th Aug, 2023.
+============================================================================
+*/
+
 #include <unistd.h>    // Import for `pipe``, `fork`, `execl` & `fcntl`
 #include <sys/types.h> // Import `fork`
 #include <fcntl.h>     // Import for `fcntl`
