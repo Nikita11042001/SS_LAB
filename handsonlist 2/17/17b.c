@@ -1,7 +1,7 @@
 /*
 ============================================================================
 Name : 17.c
-Author : Vraj Jatin Naik
+Author : Nikita Gupta
 Description : Write a program to execute ls -l | wc.
               a. use dup
               b. use dup2
