@@ -1,3 +1,12 @@
+/*
+============================================================================
+Name : 29.c
+Author : Nikita Gupta
+Description : Write a program to remove the message queue
+Date : 7th Oct, 2023.
+============================================================================
+*/
+
 #include <sys/types.h> // Import for `ftok` `msgget` & `msgctl`
 #include <sys/ipc.h>   // Import for `ftok` `msgget` & `msgctl`
 #include <sys/msg.h>   // Import for `msgget` & `msgctl`
