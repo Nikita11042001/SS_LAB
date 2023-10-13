@@ -1,3 +1,11 @@
+/*
+============================================================================
+Name : 28.c
+Author : Nikita Gupta
+Description : Write a program to change the exiting message queue permission. (use msqid_ds structure)
+Date : 7th Oct, 2023.
+============================================================================
+*/
 #include <sys/types.h> // Import for `ftok` `msgget` & `msgctl`
 #include <sys/ipc.h>   // Import for `ftok` `msgget` & `msgctl`
 #include <sys/msg.h>   // Import for `msgget` & `msgctl`
