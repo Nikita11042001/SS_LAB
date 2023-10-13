@@ -1,3 +1,15 @@
+/*
+============================================================================
+Name : 30.c
+Author : Nikita Gupta
+Description : Write a program to create a shared memory.
+a. write some data to the shared memory
+b. attach with O_RDONLY and check whether you are able to overwrite.
+c. detach the shared memory
+d. remove the shared memory
+Date : 7th Oct, 2023.
+=============================================================================
+*/
 #include <sys/types.h> // Import for `ftok`, `shmget`, `shmat`
 #include <sys/ipc.h>   // Import for `ftok`, `shmget`
 #include <sys/shm.h>   // Import for `shmget`, `shmat`
