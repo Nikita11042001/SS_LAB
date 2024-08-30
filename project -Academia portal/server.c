@@ -11,11 +11,8 @@
 #include <termios.h>
 
 #define PORT 8080
-#define MAX_CLIENTS 10
-// #define MAX_COURSES 50
-#define MAX_STUDENTS 100
-#define MAX_COURSES 5
-#define MAX_LINE_LENGTH 450
+#define MAX_CLIENTS 20
+#define MAX_COURSES 10
 
 int clients_count = 0;
 
@@ -50,14 +47,14 @@ struct Course
     char rem_seats[20];
 };
 
-struct Student_Courses
-{
-    char login_id[50];
-    char taken_course[20];
-};
-
+// Admin part Start
 void write_student_data_to_file(struct Student student, const char *filename)
 {
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
     int file_fd = open(filename, O_WRONLY | O_APPEND);
     if (file_fd < 0)
     {
@@ -74,28 +71,44 @@ void write_student_data_to_file(struct Student student, const char *filename)
              student.email_id,
              student.address,
              student.activate_stu);
+    fcntl(file_fd, F_SETLKW, &lock);
 
     write(file_fd, buffer, strlen(buffer));
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
+
     close(file_fd);
 }
 
 void write_student_log_in_data_to_file(struct Student student, const char *filename)
 {
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
     int file_fd = open(filename, O_WRONLY | O_APPEND);
     if (file_fd < 0)
     {
         perror("Error opening File");
         return;
     }
-
     char buffer[120];
     snprintf(buffer, sizeof(buffer), "%s$%s$%s\n", student.login_id, student.password, student.activate_stu);
+    fcntl(file_fd, F_SETLKW, &lock);
     write(file_fd, buffer, strlen(buffer));
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
     close(file_fd);
 }
 
 void write_faculty_data_to_file(struct Faculty faculty, const char *filename)
 {
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
     int file_fd = open(filename, O_WRONLY | O_APPEND);
     if (file_fd < 0)
     {
@@ -112,13 +125,22 @@ void write_faculty_data_to_file(struct Faculty faculty, const char *filename)
              faculty.designation,
              faculty.email_id,
              faculty.address);
-
+    fcntl(file_fd, F_SETLKW, &lock);
     write(file_fd, buffer, strlen(buffer));
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
+
     close(file_fd);
 }
 
 void write_faculty_log_in_data_to_file(struct Faculty faculty, const char *filename)
 {
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+
     int file_fd = open(filename, O_WRONLY | O_APPEND);
     if (file_fd < 0)
     {
@@ -129,7 +151,10 @@ void write_faculty_log_in_data_to_file(struct Faculty faculty, const char *filen
     char buffer[120];
     char temp[5] = "1";
     snprintf(buffer, sizeof(buffer), "%s$%s$%s$\n", faculty.login_id, faculty.password, temp);
+    fcntl(file_fd, F_SETLKW, &lock);
     write(file_fd, buffer, strlen(buffer));
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
     close(file_fd);
 }
 
@@ -246,7 +271,14 @@ int search_faculty_by_id(const char *faculty_id, const char *filename, struct Fa
 
 void removeStudentDetails(const char *login_id, const char *filename)
 {
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+
     FILE *originalFile = fopen(filename, "r");
+
     if (originalFile == NULL)
     {
         perror("Error opening file");
@@ -254,6 +286,7 @@ void removeStudentDetails(const char *login_id, const char *filename)
     }
 
     FILE *tempFile = fopen("tempfile.txt", "w");
+    int file_fd = fileno(tempFile);
     if (tempFile == NULL)
     {
         perror("Error creating temporary file");
@@ -263,6 +296,7 @@ void removeStudentDetails(const char *login_id, const char *filename)
 
     char line[256];
     int found = 0;
+    fcntl(file_fd, F_SETLKW, &lock);
 
     while (fgets(line, sizeof(line), originalFile) != NULL)
     {
@@ -279,6 +313,8 @@ void removeStudentDetails(const char *login_id, const char *filename)
             }
         }
     }
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
 
     fclose(originalFile);
     fclose(tempFile);
@@ -303,87 +339,99 @@ void removeStudentDetails(const char *login_id, const char *filename)
 
 int update_activation_status_login_file(const char *login_id, const char *new_val, const char *filename)
 {
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+
     int file_fd = open(filename, O_RDWR);
     if (file_fd < 0)
     {
         perror("Error opening file");
         return 0;
     }
+
     char buffer[256];
-    char new_file_contents[256] = "";
     ssize_t bytesRead;
+
     while ((bytesRead = read(file_fd, buffer, sizeof(buffer))) > 0)
     {
         char *line = strtok(buffer, "\n");
         while (line != NULL)
         {
-            char stored_login_id[50], password[50], activate_stu[5];
-            sscanf(line, "%49[^$]$%49[^$]$%4[^$]$", stored_login_id, password, activate_stu);
-            if (strcmp(stored_login_id, login_id) == 0)
-            {
-                strncpy(activate_stu, new_val, sizeof(activate_stu));
-            }
-            char updated_line[256];
-            snprintf(updated_line, sizeof(updated_line), "%s$%s$%s$\n", stored_login_id, password, activate_stu);
-            strcat(new_file_contents, updated_line);
+            char stored_username[50], stored_password[50], stored_activate_stu[5];
 
+            sscanf(line, "%49[^$]$%49[^$]$%4[^$]$", stored_username, stored_password, stored_activate_stu);
+            printf("%s,%s\n", stored_username, stored_password);
+            if (strcmp(stored_username, login_id) == 0)
+            {
+                printf("q");
+                removeStudentDetails(login_id, filename);
+                struct Student curr_stu;
+                strcpy(curr_stu.login_id, login_id);
+                strcpy(curr_stu.password, stored_password);
+                strcpy(curr_stu.activate_stu, new_val);
+                fcntl(file_fd, F_SETLKW, &lock);
+                write_student_log_in_data_to_file(curr_stu, filename);
+                lock.l_type = F_UNLCK;
+                fcntl(file_fd, F_SETLKW, &lock);
+                close(file_fd);
+                return 1;
+            }
             line = strtok(NULL, "\n");
         }
     }
     close(file_fd);
-    file_fd = open(filename, O_WRONLY | O_TRUNC);
-    if (file_fd < 0)
-    {
-        perror("Error reopening file for writing");
-        return 0;
-    }
-    write(file_fd, new_file_contents, strlen(new_file_contents));
-    close(file_fd);
-    return 1;
+    return 0;
 }
 
 int change_password(const char *login_id, const char *old_password, const char *new_password, const char *filename)
 {
-    int file_fd = open(filename, O_RDWR);
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+
+    int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
         perror("Error opening file");
         return 0;
     }
-    char line[256];
+
+    char buffer[256];
     ssize_t bytesRead;
-    int student_modified = 0;
-    off_t line_start = 0;
-    while ((bytesRead = read(file_fd, line, sizeof(line) - 1)) > 0)
+
+    while ((bytesRead = read(file_fd, buffer, sizeof(buffer))) > 0)
     {
-        line[bytesRead] = '\0';
-        char *stored_login_id = strtok(line, "$");
-        char *password = strtok(NULL, "$");
-        char *activation_status = strtok(NULL, "$");
-        if (stored_login_id != NULL && password != NULL && activation_status != NULL)
+        char *line = strtok(buffer, "\n");
+        while (line != NULL)
         {
-            if (strcmp(stored_login_id, login_id) == 0)
+            char stored_username[50], stored_password[50], stored_activate_stu[5];
+
+            sscanf(line, "%49[^$]$%49[^$]$%4[^$]", stored_username, stored_password, stored_activate_stu);
+
+            if (strcmp(stored_username, login_id) == 0 && strcmp(stored_password, old_password) == 0)
             {
-                if (strcmp(password, old_password) == 0)
-                {
-                    off_t new_line_start = lseek(file_fd, 0, SEEK_CUR) - bytesRead;
-                    lseek(file_fd, line_start, SEEK_SET);
-                    char updated_line[256];
-                    snprintf(updated_line, sizeof(updated_line), "%s$%s$%s$", stored_login_id, new_password, activation_status);
-                    write(file_fd, updated_line, strlen(updated_line));
-                    lseek(file_fd, new_line_start, SEEK_SET);
-                    student_modified = 1;
-                    break;
-                }
+                removeStudentDetails(login_id, filename);
+                struct Student curr_stu;
+                strcpy(curr_stu.login_id, login_id);
+                strcpy(curr_stu.password, new_password);
+                strcpy(curr_stu.activate_stu, stored_activate_stu);
+                fcntl(file_fd, F_SETLKW, &lock);
+                write_student_log_in_data_to_file(curr_stu, filename);
+                lock.l_type = F_UNLCK;
+                fcntl(file_fd, F_SETLKW, &lock);
+                close(file_fd);
+                return 1;
             }
+            line = strtok(NULL, "\n");
         }
-
-        line_start = lseek(file_fd, 0, SEEK_CUR);
     }
-
     close(file_fd);
-
-    return student_modified;
+    return 0;
 }
 
 int update_student_details(const char *login_id, const char *this_detail, const char *new_data, const char *filename)
@@ -408,7 +456,7 @@ int update_student_details(const char *login_id, const char *this_detail, const 
         else if (strcmp(this_detail, "password") == 0)
         {
             strcpy(new_student.password, new_data);
-            change_password(login_id, result.password, new_data, filename);
+            change_password(login_id, result.password, new_data, "data/students_data/student_log_in.txt");
         }
         else if (strcmp(this_detail, "name") == 0)
         {
@@ -426,9 +474,9 @@ int update_student_details(const char *login_id, const char *this_detail, const 
         {
             strcpy(new_student.address, new_data);
         }
-        else if (strcmp(this_detail, "status") == 0)
+        else if (strcmp(this_detail, "account status") == 0)
         {
-            printf("%s", new_data);
+            // printf("EE");
             update_activation_status_login_file(login_id, new_data, "data/students_data/student_log_in.txt");
             strcpy(new_student.activate_stu, new_data);
         }
@@ -502,6 +550,7 @@ int update_faculty_details(const char *login_id, const char *this_detail, const 
         return 0;
     }
 }
+// Admin Part end
 
 // Faculty part start
 int write_course_data_to_file(struct Course add_course, const char *filename)
@@ -632,6 +681,11 @@ int view_offering_courses(struct Course all_courses[], const char *filename, con
 
 int remove_course_from_catalog(const char *take_course_id, const char *filename, const char *faculty_id)
 {
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
     FILE *originalFile = fopen(filename, "r");
     if (originalFile == NULL)
     {
@@ -639,6 +693,7 @@ int remove_course_from_catalog(const char *take_course_id, const char *filename,
     }
 
     FILE *tempFile = fopen("tempfile.txt", "w");
+    int file_fd = fileno(tempFile);
     if (tempFile == NULL)
     {
         fclose(originalFile);
@@ -647,6 +702,7 @@ int remove_course_from_catalog(const char *take_course_id, const char *filename,
 
     char line[256];
     int found = 0;
+    fcntl(file_fd, F_SETLKW, &lock);
 
     while (fgets(line, sizeof(line), originalFile) != NULL)
     {
@@ -664,6 +720,8 @@ int remove_course_from_catalog(const char *take_course_id, const char *filename,
         }
     }
 
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
     fclose(originalFile);
     fclose(tempFile);
 
@@ -724,17 +782,11 @@ int search_course_by_id(const char *course_id, const char *filename, struct Cour
 int update_course_details(const char *course_id, const char *this_detail, const char *new_data, const char *filename, const char *faculty_id)
 {
 
-    // struct Course result;
     struct Course new_course;
     if (search_course_by_id(course_id, filename, &new_course))
     {
         if (strcmp(new_course.faculty_id, faculty_id) == 0)
         {
-            // strcpy(new_course.course_id, result.course_id);
-            // strcpy(new_course.course_name, result.course_name);
-            // strcpy(new_course.faculty_id, result.faculty_id);
-            // strcpy(new_course.max_seats, result.max_seats);
-            // strcpy(new_course.rem_seats, result.rem_seats);
             remove_course_from_catalog(course_id, filename, faculty_id);
             if (strcmp(faculty_id, new_course.faculty_id) == 0)
             {
@@ -777,72 +829,315 @@ int update_course_details(const char *course_id, const char *this_detail, const 
         return 0;
     }
 }
+// Faculty part end
 
-void also_update_in_course_details(struct Course temp){
-    // char*endptr;
-    // int new_rem_seats = strtol(temp.rem_seats,&endptr,10);
-    // if(new_rem_seats>)
-    // new_rem_seats--;
-    // if()
-}
-int enroll_new_course(const char *login_id, const char *course_id)
+// Student Part start
+void update_course_details_by_student(const char *course_id, const char *new_data, const char *filename)
 {
-    char course_detail_file[] = "data/courses_data/course_details.txt";
-    char course_and_students_file[] = "data/courses_data/course_and_students.txt";
-    
-    struct Course temp;
+    struct Course new_course;
+    search_course_by_id(course_id, filename, &new_course);
+    remove_course_from_catalog(course_id, filename, new_course.faculty_id);
+    strcpy(new_course.rem_seats, new_data);
+    write_course_data_to_file(new_course, filename);
+}
 
-    if(search_course_by_id(course_id,course_detail_file,&temp)==0){
-        return -3;
-    }
-
-
-    int file_fd = open(course_and_students_file, O_RDWR | O_APPEND);
+int is_student_course_exist(const char *login_id, const char *course_id, const char *filename)
+{
+    int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        perror("Error opening file");
-        return 0;
+        perror("Error Opening File");
+        return -1;
     }
 
-    char buffer[120];
+    char buffer[256];
     ssize_t bytesRead;
-    int cnt = 0;
+    int student_found = 0;
+
     while ((bytesRead = read(file_fd, buffer, sizeof(buffer))) > 0)
     {
         char *line = strtok(buffer, "\n");
         while (line != NULL)
         {
-            char stored_login_id[50], stored_course_id[50];
+            char curr_login_id[50];
+            char curr_course_id[20];
 
-            sscanf(line, "%29[^$]$%29[^$]$", stored_login_id, stored_course_id);
-
-            if (strcmp(stored_login_id, login_id) == 0)
+            sscanf(line, "%49[^$]$%19[^$]$", curr_login_id, curr_course_id);
+            if (strcmp(curr_login_id, login_id) == 0 && strcmp(curr_course_id, course_id) == 0)
             {
-                cnt++;
-                if (strcmp(stored_course_id, course_id) == 0)
+                close(file_fd);
+                return 1;
+            }
+            line = strtok(NULL, "\n");
+        }
+    }
+    close(file_fd);
+    return 0;
+}
+
+int enroll_new_course(const char *login_id, const char *course_id)
+{
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    struct Course curr_course;
+    if (search_course_by_id(course_id, "data/courses_data/course_details.txt", &curr_course) == 0)
+    {
+        return -3;
+    }
+
+    if (strcmp(curr_course.rem_seats, "0") == 0)
+    {
+        return -2;
+    }
+    char *temp;
+    int rem_seats = strtol(curr_course.rem_seats, &temp, 10) - 1;
+    char new_data[20];
+    sprintf(new_data, "%d", rem_seats);
+    update_course_details_by_student(course_id, new_data, "data/courses_data/course_details.txt");
+
+    char filename[] = "data/courses_data/course_and_students.txt";
+    int file_fd = open(filename, O_RDWR | O_APPEND);
+    if (file_fd < 0)
+    {
+        perror("Error opening file");
+        return -1;
+    }
+    char buf[1024];
+    if (is_student_course_exist(login_id, course_id, filename) == 1)
+    {
+        close(file_fd);
+        return 0;
+    }
+    strcpy(buf, login_id);
+    strcat(buf, "$");
+    strcat(buf, course_id);
+    strcat(buf, "$\n");
+    printf("%s\n", buf);
+    fcntl(file_fd, F_SETLKW, &lock);
+    write(file_fd, buf, strlen(buf));
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
+    close(file_fd);
+    return 1;
+}
+
+int remove_course_details_course_stu_using_login_id(const char *login_id, const char *course_id, const char *filename)
+{
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    FILE *originalFile = fopen(filename, "r");
+    if (originalFile == NULL)
+    {
+        return 0;
+    }
+
+    FILE *tempFile = fopen("tempfile.txt", "w");
+    int file_fd = fileno(tempFile);
+    if (tempFile == NULL)
+    {
+        fclose(originalFile);
+        return 0;
+    }
+
+    char line[256];
+    int found = 0;
+    fcntl(file_fd, F_SETLKW, &lock);
+
+    while (fgets(line, sizeof(line), originalFile) != NULL)
+    {
+        char curr_login_id[50];
+        char curr_course_id[20];
+
+        if (sscanf(line, "%49[^$]$%19[^$]$", curr_login_id, curr_course_id) == 2)
+        {
+            if (strcmp(curr_login_id, login_id) == 0 && strcmp(curr_course_id, course_id) == 0)
+            {
+                found = 1;
+            }
+            else
+            {
+                fputs(line, tempFile);
+            }
+        }
+    }
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
+
+    fclose(originalFile);
+    fclose(tempFile);
+
+    if (found)
+    {
+        if (remove(filename) != 0)
+        {
+            return 0;
+        }
+        if (rename("tempfile.txt", filename) != 0)
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        remove("tempfile.txt");
+        return 1;
+    }
+    return 0;
+}
+
+int remove_course_details_course_stu_using_course_id(const char *course_id, const char *filename)
+{
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+
+    FILE *originalFile = fopen(filename, "r");
+    if (originalFile == NULL)
+    {
+        return 0;
+    }
+
+    FILE *tempFile = fopen("tempfile.txt", "w");
+    int file_fd = fileno(tempFile);
+    if (tempFile == NULL)
+    {
+        fclose(originalFile);
+        return 0;
+    }
+
+    char line[256];
+    int found = 0;
+    fcntl(file_fd, F_SETLKW, &lock);
+
+    while (fgets(line, sizeof(line), originalFile) != NULL)
+    {
+        char curr_login_id[50];
+        char curr_course_id[20];
+
+        if (sscanf(line, "%49[^$]$%19[^$]$", curr_login_id, curr_course_id) == 2)
+        {
+            if (strcmp(curr_course_id, course_id) == 0)
+            {
+                found = 1;
+            }
+            else
+            {
+                fputs(line, tempFile);
+            }
+        }
+    }
+    lock.l_type = F_UNLCK;
+    fcntl(file_fd, F_SETLKW, &lock);
+    fclose(originalFile);
+    fclose(tempFile);
+
+    if (found)
+    {
+        if (remove(filename) != 0)
+        {
+            return 0;
+        }
+        if (rename("tempfile.txt", filename) != 0)
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        remove("tempfile.txt");
+        return 1;
+    }
+    return 0;
+}
+
+int drop_new_course(const char *login_id, const char *course_id)
+{
+    struct Course curr_course;
+    if (search_course_by_id(course_id, "data/courses_data/course_details.txt", &curr_course) == 0)
+    {
+        return -3;
+    }
+
+    char filename[] = "data/courses_data/course_and_students.txt";
+    int file_fd = open(filename, O_RDWR | O_APPEND);
+    if (file_fd < 0)
+    {
+        perror("Error opening file");
+        return -1;
+    }
+
+    char buf[1024];
+    if (is_student_course_exist(login_id, course_id, filename) == 0)
+    {
+        close(file_fd);
+        return -2;
+    }
+    if (remove_course_details_course_stu_using_login_id(login_id, course_id, filename) == 1)
+    {
+        return 0;
+    }
+    char *temp;
+    int rem_seats = strtol(curr_course.rem_seats, &temp, 10) + 1;
+    char new_data[20];
+    sprintf(new_data, "%d", rem_seats);
+    update_course_details_by_student(course_id, new_data, "data/courses_data/course_details.txt");
+    return 1;
+}
+
+int view_enrolled_course(const char *login_id, const char *filename, int client_socket)
+{
+    int file_fd = open(filename, O_RDONLY);
+    if (file_fd < 0)
+    {
+        perror("Error Opening File");
+        return -1;
+    }
+
+    char buffer[256];
+    ssize_t bytesRead;
+    int student_found = 0;
+    int ack = 1;
+    while ((bytesRead = read(file_fd, buffer, sizeof(buffer))) > 0)
+    {
+        char *line = strtok(buffer, "\n");
+        while (line != NULL)
+        {
+            char curr_login_id[50];
+            char curr_course_id[20];
+
+            sscanf(line, "%49[^$]$%29[^$]$", curr_login_id, curr_course_id);
+            if (strcmp(curr_login_id, login_id) == 0)
+            {
+                struct Course result;
+                if (search_course_by_id(curr_course_id, "data/courses_data/course_details.txt", &result) == 1)
                 {
-                    return -2;
+                    send(client_socket, &ack, sizeof(int), 0);
+                    char buffer[sizeof(struct Course)];
+                    memcpy(buffer, &result, sizeof(struct Course));
+                    send(client_socket, buffer, sizeof(struct Course), 0);
+                    printf("here");
                 }
             }
             line = strtok(NULL, "\n");
         }
     }
-    if (cnt >= 5)
-    {
-        return -1;
-    }
-    char to_write[100];
-    snprintf(to_write, sizeof(to_write), "%s$%s$\n", login_id, course_id);
-    if(write(file_fd, to_write, strlen(to_write))){
-        char this_detail[30] ="remaining seats"; 
-        also_update_in_course_details(temp);
-        return 1;
-
-    }
-
+    // printf("RR");
+    ack = 0;
+    send(client_socket, &ack, sizeof(int), 0);
     close(file_fd);
     return 0;
 }
+// Student part end
+
+// New Client part start
 void *handle_client(void *arg)
 {
     int client_socket = *((int *)arg);
@@ -850,10 +1145,12 @@ void *handle_client(void *arg)
     int num, choice;
     int auth_status = 0;
     int users_count;
+    char user_type[100];
     char auth_succ_fail[40];
+
     {
-        char welcome[100] = "Hello! Welcome to the Course Registration Portal\n";
-        char select_role[100] = "Log in As:\n 1) Student\n 2) Faculty\n 3) Admin\n 4) Exit\nEnter your Choice: ";
+        char welcome[200] = "\n------------------------------Hello! Welcome to the Course Registration Portal------------------------------\n\n";
+        char select_role[200] = "Log in As:\n\n 1) Student                    2) Faculty                    3) Admin                    4) Exit\n\nEnter your Choice: ";
 
         send(client_socket, welcome, sizeof(welcome), 0);
         send(client_socket, select_role, sizeof(select_role), 0);
@@ -867,9 +1164,22 @@ void *handle_client(void *arg)
     }
     else
     {
+        if (num == 1)
+        {
+            strcpy(user_type, "----------------------------------------Student Log In----------------------------------------\n");
+        }
+        else if (num == 2)
+        {
+            strcpy(user_type, "----------------------------------------Faculty Log In----------------------------------------\n");
+        }
+        else if (num == 3)
+        {
+            strcpy(user_type, "----------------------------------------Admin Log In----------------------------------------\n");
+        }
+        send(client_socket, user_type, sizeof(user_type), 0);
         // Username and Password
         {
-            char en_username[20] = "Enter username: ";
+            char en_username[20] = "\nEnter username: ";
             char en_password[20] = "Enter password: ";
             send(client_socket, en_username, sizeof(en_username), 0);
             send(client_socket, en_password, sizeof(en_password), 0);
@@ -880,6 +1190,7 @@ void *handle_client(void *arg)
         // student Logic
         if (num == 1)
         {
+
             if (readUsersFromFile(username, password, "data/students_data/student_log_in.txt"))
             {
                 auth_status = 1;
@@ -887,9 +1198,9 @@ void *handle_client(void *arg)
             send(client_socket, &auth_status, sizeof(int), 0);
             if (auth_status == 1)
             {
-                strcpy(auth_succ_fail, "Log in Successful");
+                strcpy(auth_succ_fail, "\nLog in Successful");
                 send(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
-                char student_menu[200] = "1) View All Courses\n2) Enroll new Cources\n3) Drop Courses\n4) view Enrolled Course Details\n5) Change Password\n6) Logout and Exit\n";
+                char student_menu[300] = "\nWhat do you want to do?\n\n1) View All Courses\n2) Enroll new Cources\n3) Drop Courses\n4) view Enrolled Course Details\n5) Change Password\n6) Logout and Exit\n\nEnter Your Choice: ";
                 while (1)
                 {
                     send(client_socket, student_menu, sizeof(student_menu), 0);
@@ -904,7 +1215,7 @@ void *handle_client(void *arg)
                         {
                             char filename[50] = "data/courses_data/course_details.txt";
                             struct Course all_courses[MAX_COURSES];
-                            char list_of_all[30] = "List of all Courses";
+                            char list_of_all[30] = "\nList of all Courses\n";
                             send(client_socket, list_of_all, sizeof(list_of_all), 0);
                             int total_course = view_all_courses(all_courses, filename);
                             send(client_socket, &total_course, sizeof(int), 0);
@@ -912,31 +1223,74 @@ void *handle_client(void *arg)
                             for (int i = 0; i < total_course - 1; i++)
                             {
                                 send(client_socket, &all_courses[i], sizeof(all_courses[i]), 0);
+                                sleep(1);
                             }
                         }
                     }
                     // Enroll new Cources
                     else if (choice == 2)
                     {
-                        char en_new_course[30] = "Enter Course ID: ";
-                        send(client_socket, en_new_course, sizeof(en_new_course), 0);
-                        char course_id[20];
+                        char en_course_id[20] = "\nEnter Course ID: ";
+                        send(client_socket, en_course_id, sizeof(en_course_id), 0);
+                        char course_id[50];
                         recv(client_socket, course_id, sizeof(course_id), 0);
-                        int x =enroll_new_course(username, course_id); 
-                        if (x)
+                        int ack = enroll_new_course(username, course_id);
+                        char send_status[100];
+                        if (ack == 1)
                         {
-                            printf("Success\n");
+                            strcpy(send_status, "\nEnrolled Successfully!!!!");
                         }
-                        printf("%d\n",x);
-
+                        else if (ack == -3)
+                        {
+                            strcpy(send_status, "\nCourse ID does not Exist");
+                        }
+                        else if (ack == -2)
+                        {
+                            strcpy(send_status, "\nMaximum student limit reached!!");
+                        }
+                        else if (ack == -1)
+                        {
+                            strcpy(send_status, "\nError in Enrollement!! Try again after sometime");
+                        }
+                        else
+                        {
+                            strcpy(send_status, "\nAlready Enrolled!! Can not enrolled again!!");
+                        }
+                        send(client_socket, send_status, sizeof(send_status), 0);
                     }
                     // Drop Courses
                     else if (choice == 3)
                     {
+                        char en_course_id[20] = "\nEnter Course ID: ";
+                        send(client_socket, en_course_id, sizeof(en_course_id), 0);
+                        char course_id[50];
+                        recv(client_socket, course_id, sizeof(course_id), 0);
+                        int ack = drop_new_course(username, course_id);
+                        printf("ack %d", ack);
+                        char send_status[100];
+                        if (ack == 1)
+                        {
+                            strcpy(send_status, "\nCourse Dropped Successfully!!!!");
+                        }
+                        else if (ack == -3)
+                        {
+                            strcpy(send_status, "\nCourse ID does not Exist");
+                        }
+                        else if (ack == -2)
+                        {
+                            strcpy(send_status, "\nYou did not enroll in this course!!");
+                        }
+                        else
+                        {
+                            strcpy(send_status, "\nError!! Try again after sometime");
+                        }
+                        send(client_socket, send_status, sizeof(send_status), 0);
                     }
                     // View Enrolled Course Details
                     else if (choice == 4)
                     {
+                        char filename[50] = "data/courses_data/course_and_students.txt";
+                        view_enrolled_course(username, filename, client_socket);
                     }
                     // Change Password
                     else if (choice == 5)
@@ -953,20 +1307,25 @@ void *handle_client(void *arg)
 
                         char pass_update_status[50];
                         char temp_this_detail[30] = "password";
+                        printf("%s,%s,%s\n", username, old_password, new_password);
 
                         if (change_password(username, old_password, new_password, "data/students_data/student_log_in.txt") && update_student_details(username, temp_this_detail, new_password, "data/students_data/student_data.txt"))
                         {
-                            strcpy(pass_update_status, "Password Changed Successfully");
+                            strcpy(pass_update_status, "\nPassword Changed Successfully");
                         }
                         else
                         {
-                            strcpy(pass_update_status, "Check Your Current Password");
+                            strcpy(pass_update_status, "\nCheck Your Current Password");
                         }
                         send(client_socket, pass_update_status, sizeof(pass_update_status), 0);
                     }
                     // Logout and Exit
                     else if (choice == 6)
                     {
+                        char bye_bye[40] = "\nSigning Out.....Please Wait..\n";
+                        send(client_socket, bye_bye, sizeof(bye_bye), 0);
+                        char bye[20] = "\nBye Bye....\n";
+                        send(client_socket, bye, sizeof(bye), 0);
                         break;
                     }
                 }
@@ -987,9 +1346,9 @@ void *handle_client(void *arg)
             send(client_socket, &auth_status, sizeof(int), 0);
             if (auth_status == 1)
             {
-                strcpy(auth_succ_fail, "Log in Successful");
+                strcpy(auth_succ_fail, "\nLog in Successful");
                 send(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
-                char faculty_menu[200] = "1) View All Courses\n2) Add new Cources\n3) Remove Courses from Catalog\n4) Update Course Details\n5) Change Password\n6) Logout and Exit\n";
+                char faculty_menu[200] = "\nWhat do you want to do?\n\n1) View All Courses\n2) Add new Cources\n3) Remove Courses from Catalog\n4) Update Course Details\n5) Change Password\n6) Logout and Exit\n\nEnter Your Choice: ";
                 while (1)
                 {
                     send(client_socket, faculty_menu, sizeof(faculty_menu), 0);
@@ -1004,7 +1363,7 @@ void *handle_client(void *arg)
                         {
                             char filename[50] = "data/courses_data/course_details.txt";
                             struct Course all_courses[MAX_COURSES];
-                            char list_of_all[30] = "List of all Courses";
+                            char list_of_all[30] = "\nList of all Courses";
                             send(client_socket, list_of_all, sizeof(list_of_all), 0);
                             int total_course = view_offering_courses(all_courses, filename, username);
                             send(client_socket, &total_course, sizeof(int), 0);
@@ -1012,13 +1371,14 @@ void *handle_client(void *arg)
                             for (int i = 0; i < total_course - 1; i++)
                             {
                                 send(client_socket, &all_courses[i], sizeof(all_courses[i]), 0);
+                                sleep(1);
                             }
                         }
                     }
                     // Add new Cources
                     else if (choice == 2)
                     {
-                        char add_new_courses[30] = "Enter Course Details.\n";
+                        char add_new_courses[30] = "\nEnter Course Details.\n\n";
                         send(client_socket, add_new_courses, sizeof(add_new_courses), 0);
 
                         char en_course_id[30] = "Enter Course ID: ";
@@ -1030,11 +1390,6 @@ void *handle_client(void *arg)
                         send(client_socket, en_course_name, sizeof(en_course_name), 0);
                         char new_course_name[30];
                         recv(client_socket, new_course_name, sizeof(new_course_name), 0);
-
-                        // char en_faculty_id[30] = "Enter Faculty ID: ";
-                        // send(client_socket, en_faculty_id, sizeof(en_faculty_id), 0);
-                        // char new_faculty_id[50];
-                        // recv(client_socket, new_faculty_id, sizeof(new_faculty_id), 0);
 
                         char en_number_seats[30] = "Enter Number of Seats: ";
                         send(client_socket, en_number_seats, sizeof(en_number_seats), 0);
@@ -1071,6 +1426,7 @@ void *handle_client(void *arg)
                         char remove_status[30];
                         if (remove_course_from_catalog(take_course_id, filename, username))
                         {
+                            remove_course_details_course_stu_using_course_id(take_course_id, "data/courses_data/course_and_students.txt");
                             strcpy(remove_status, "Course removed successfully");
                         }
                         else
@@ -1098,12 +1454,12 @@ void *handle_client(void *arg)
                         char filename[50] = "data/courses_data/course_details.txt";
                         if (update_course_details(course_id, this_detail, new_data, filename, username))
                         {
-                            char update_status[40] = "Details Updated Successfully";
+                            char update_status[40] = "\nDetails Updated Successfully";
                             send(client_socket, update_status, sizeof(update_status), 0);
                         }
                         else
                         {
-                            char update_status[40] = "Updation Failed";
+                            char update_status[40] = "\nUpdation Failed";
                             send(client_socket, update_status, sizeof(update_status), 0);
                         }
                     }
@@ -1124,17 +1480,21 @@ void *handle_client(void *arg)
                         char temp_this_detail[30] = "password";
                         if (change_password(username, old_password, new_password, "data/faculties_data/faculties_log_in.txt") && update_student_details(username, temp_this_detail, new_password, "data/faculties_data/faculty_data.txt"))
                         {
-                            strcpy(pass_update_status, "Password Changed Successfully");
+                            strcpy(pass_update_status, "\nPassword Changed Successfully");
                         }
                         else
                         {
-                            strcpy(pass_update_status, "Check Your Current Password");
+                            strcpy(pass_update_status, "\nCheck Your Current Password");
                         }
                         send(client_socket, pass_update_status, sizeof(pass_update_status), 0);
                     }
                     // Logout and Exit
                     else if (choice == 6)
                     {
+                        char bye_bye[40] = "\nSigning Out.....Please Wait..\n";
+                        send(client_socket, bye_bye, sizeof(bye_bye), 0);
+                        char bye[20] = "\nBye Bye....\n";
+                        send(client_socket, bye, sizeof(bye), 0);
                         break;
                     }
                 }
@@ -1155,9 +1515,9 @@ void *handle_client(void *arg)
             send(client_socket, &auth_status, sizeof(int), 0);
             if (auth_status == 1)
             {
-                strcpy(auth_succ_fail, "Log in Successful");
+                strcpy(auth_succ_fail, "\nLog in Successful");
                 send(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
-                char admin_menu[200] = "1) Add student\n2) View Student Details\n3) Add Faculty\n4) View Faculty Details\n5) Activate Student\n6) Block Student\n7) Modify Student Details\n8) Modify Faculty Details\n9) Exit\nEnter Your Choice: ";
+                char admin_menu[250] = "\nWhat do you want to do?\n\n1) Add student\n2) View Student Details\n3) Add Faculty\n4) View Faculty Details\n5) Activate Student\n6) Block Student\n7) Modify Student Details\n8) Modify Faculty Details\n9) Exit\n\nEnter Your Choice: ";
                 while (1)
                 {
                     send(client_socket, admin_menu, sizeof(admin_menu), 0);
@@ -1170,13 +1530,24 @@ void *handle_client(void *arg)
                         recv(client_socket, buffer, sizeof(struct Student), 0);
                         struct Student student_info;
                         memcpy(&student_info, buffer, sizeof(struct Student));
-                        write_student_data_to_file(student_info, "data/students_data/student_data.txt");
-                        write_student_log_in_data_to_file(student_info, "data/students_data/student_log_in.txt");
+                        char succ[50];
+                        struct Student temp;
+                        if (search_student_by_id(student_info.login_id, "data/students_data/student_data.txt", &temp) == 1)
+                        {
+                            strcpy(succ, "\nStudent with the same ID already exist\n");
+                        }
+                        else
+                        {
+                            write_student_data_to_file(student_info, "data/students_data/student_data.txt");
+                            write_student_log_in_data_to_file(student_info, "data/students_data/student_log_in.txt");
+                            strcpy(succ, "\nStudent record added successfully\n");
+                        }
+                        send(client_socket, succ, sizeof(succ), 0);
                     }
                     // View Student Details
                     else if (choice == 2)
                     {
-                        char give_stu_id[100] = "Enter Student ID: ";
+                        char give_stu_id[100] = "\nEnter Student ID: ";
                         send(client_socket, give_stu_id, sizeof(give_stu_id), 0);
                         char find_login_id[50];
                         recv(client_socket, find_login_id, sizeof(find_login_id), 0);
@@ -1206,11 +1577,13 @@ void *handle_client(void *arg)
                         memcpy(&faculty_info, buffer, sizeof(struct Faculty));
                         write_faculty_data_to_file(faculty_info, "data/faculties_data/faculty_data.txt");
                         write_faculty_log_in_data_to_file(faculty_info, "data/faculties_data/faculties_log_in.txt");
+                        char succ[40] = "\nFaculty record added successfully\n";
+                        send(client_socket, succ, sizeof(succ), 0);
                     }
                     // View Faculty Details
                     else if (choice == 4)
                     {
-                        char give_fac_id[100] = "Enter Faculty ID: ";
+                        char give_fac_id[100] = "\nEnter Faculty ID: ";
                         send(client_socket, give_fac_id, sizeof(give_fac_id), 0);
                         char find_login_id[50];
                         recv(client_socket, find_login_id, sizeof(find_login_id), 0);
@@ -1234,27 +1607,28 @@ void *handle_client(void *arg)
                     // Activate Student
                     else if (choice == 5)
                     {
-                        char en_stu_id[25] = "Enter Student ID: ";
+                        char en_stu_id[25] = "\nEnter Student ID: ";
                         send(client_socket, en_stu_id, sizeof(en_stu_id), 0);
                         char activate_stu_id[50];
                         recv(client_socket, activate_stu_id, sizeof(activate_stu_id), 0);
                         char activation_flag[40];
                         char temp_buff[5] = "1";
                         char temp_buff_status[20] = "account status";
-                        if (update_student_details(activate_stu_id, temp_buff_status, temp_buff, "data/students_data/student_data.txt"))
+                        char filename[] = "data/students_data/student_data.txt";
+                        if (update_student_details(activate_stu_id, temp_buff_status, temp_buff, filename))
                         {
-                            strcpy(activation_flag, "Student account Activated Successfully");
+                            strcpy(activation_flag, "\nStudent account Activated Successfully");
                         }
                         else
                         {
-                            strcpy(activation_flag, "Student ID not found");
+                            strcpy(activation_flag, "\nStudent ID not found");
                         }
                         send(client_socket, activation_flag, sizeof(activation_flag), 0);
                     }
                     // Block Student
                     else if (choice == 6)
                     {
-                        char en_stu_id[25] = "Enter Student ID: ";
+                        char en_stu_id[25] = "\nEnter Student ID: ";
                         send(client_socket, en_stu_id, sizeof(en_stu_id), 0);
                         char block_stu_id[50];
                         recv(client_socket, block_stu_id, sizeof(block_stu_id), 0);
@@ -1262,18 +1636,18 @@ void *handle_client(void *arg)
                         char temp_buff[5] = "0";
                         if (update_student_details(block_stu_id, "account status", temp_buff, "data/students_data/student_data.txt"))
                         {
-                            strcpy(activation_flag, "Student account Blocked Successfully");
+                            strcpy(activation_flag, "\nStudent account Blocked Successfully");
                         }
                         else
                         {
-                            strcpy(activation_flag, "Student ID not found");
+                            strcpy(activation_flag, "\nStudent ID not found");
                         }
                         send(client_socket, activation_flag, sizeof(activation_flag), 0);
                     }
                     // Modify Student Details
                     else if (choice == 7)
                     {
-                        char en_login[45] = "Enter Log in ID of the Student: ";
+                        char en_login[45] = "\nEnter Log in ID of the Student: ";
                         send(client_socket, en_login, sizeof(en_login), 0);
                         char log_in_id[50];
                         recv(client_socket, log_in_id, sizeof(log_in_id), 0);
@@ -1288,19 +1662,19 @@ void *handle_client(void *arg)
                         recv(client_socket, new_data, sizeof(new_data), 0);
                         if (update_student_details(log_in_id, this_detail, new_data, "data/students_data/student_data.txt"))
                         {
-                            char update_status[40] = "Details Updated Successfully";
+                            char update_status[40] = "\nDetails Updated Successfully";
                             send(client_socket, update_status, sizeof(update_status), 0);
                         }
                         else
                         {
-                            char update_status[40] = "Updation Failed";
+                            char update_status[40] = "\nUpdation Failed";
                             send(client_socket, update_status, sizeof(update_status), 0);
                         }
                     }
                     // Moify Faculty Details
                     else if (choice == 8)
                     {
-                        char en_login[45] = "Enter Log in ID of the Faculty: ";
+                        char en_login[45] = "\nEnter Log in ID of the Faculty: ";
                         send(client_socket, en_login, sizeof(en_login), 0);
                         char log_in_id[50];
                         recv(client_socket, log_in_id, sizeof(log_in_id), 0);
@@ -1316,18 +1690,22 @@ void *handle_client(void *arg)
 
                         if (update_faculty_details(log_in_id, this_detail, new_data, "data/faculties_data/faculty_data.txt"))
                         {
-                            char update_status[40] = "Details Updated Successfully";
+                            char update_status[40] = "\nDetails Updated Successfully";
                             send(client_socket, update_status, sizeof(update_status), 0);
                         }
                         else
                         {
-                            char update_status[40] = "Updation Failed";
+                            char update_status[40] = "\nUpdation Failed";
                             send(client_socket, update_status, sizeof(update_status), 0);
                         }
                     }
                     // LogOut and Exit
                     else if (choice == 9)
                     {
+                        char bye_bye[40] = "\nSigning Out.....Please Wait..\n";
+                        send(client_socket, bye_bye, sizeof(bye_bye), 0);
+                        char bye[20] = "\nBye Bye....\n";
+                        send(client_socket, bye, sizeof(bye), 0);
                         break;
                     }
                 }
@@ -1343,6 +1721,7 @@ void *handle_client(void *arg)
     clients_count--;
     pthread_exit(NULL);
 }
+// New Client part end
 
 int main()
 {
@@ -1376,18 +1755,18 @@ int main()
     }
     while (1)
     {
+        printf("%d\n", clients_count);
         addr_size = sizeof(new_addr);
         new_socket = accept(server_socket, (struct sockaddr *)&new_addr, &addr_size);
-        if (pthread_create(&tid[clients_count], NULL, handle_client, &new_socket) != 0)
-        {
-            perror("Error in creating thread");
-        }
-        clients_count++;
-        printf("%d\n", clients_count);
         if (clients_count >= MAX_CLIENTS)
         {
             printf("Maximum number of clients reached. Connection rejected.\n");
             close(new_socket);
+        }
+        clients_count++;
+        if (pthread_create(&tid[clients_count], NULL, handle_client, &new_socket) != 0)
+        {
+            perror("Error in creating thread");
         }
     }
     close(server_socket);
