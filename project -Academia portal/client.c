@@ -12,7 +12,7 @@
 
 #define PORT 8080
 #define MAX_CLIENTS 10
-#define MAX_COURSES 50
+#define MAX_COURSES 10
 
 int clients_count = 0;
 
@@ -89,8 +89,8 @@ int main()
     int client_socket, num;
     struct sockaddr_in server_addr;
     int auth_status, change_pass_status;
-    char username[50], password[50], curr_password[50], new_password[50], welcome[100], select_role[100], en_username[20], en_password[20], auth_succ_fail[40];
-
+    char username[50], password[50], curr_password[50], new_password[50], welcome[200], select_role[200], en_username[20], en_password[20], auth_succ_fail[40];
+    char user_type[100];
     // socket
     {
         client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -108,6 +108,7 @@ int main()
             exit(1);
         }
     }
+    
     // welcome
     {
         recv(client_socket, welcome, sizeof(welcome), 0);
@@ -128,9 +129,12 @@ int main()
         printf("%s", exit_);
         exit(0);
     }
+
     // Student Faculty Admin
     else
     {
+        recv(client_socket, user_type, sizeof(user_type), 0);
+        printf("%s", user_type);
         // Input from User (username and password)
         {
             recv(client_socket, en_username, sizeof(en_username), 0);
@@ -146,15 +150,16 @@ int main()
         // student
         if (num == 1)
         {
+
             recv(client_socket, &auth_status, sizeof(int), 0);
             if (auth_status == 1)
             {
-                recv(client_socket,auth_succ_fail,sizeof(auth_succ_fail),0);
-                printf("%s\n",auth_succ_fail);
+                recv(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
+                printf("%s\n", auth_succ_fail);
                 printf("Hello, %s! Welcome..\n", username);
-                char student_menu[200];
                 while (1)
                 {
+                    char student_menu[300];
                     recv(client_socket, student_menu, sizeof(student_menu), 0);
                     printf("%s", student_menu);
                     int choice;
@@ -176,7 +181,7 @@ int main()
                             recv(client_socket, &total_course, sizeof(int), 0);
 
                             struct Course course_detail;
-                            for (int i = 0; i < total_course-1; i++)
+                            for (int i = 0; i < total_course - 1; i++)
                             {
                                 recv(client_socket, &course_detail, sizeof(course_detail), 0);
                                 remove_new_line(course_detail.course_id);
@@ -196,21 +201,55 @@ int main()
                     // Enroll new Cources
                     else if (choice == 2)
                     {
-                        char en_new_course[30];
-                        recv(client_socket,en_new_course,sizeof(en_new_course),0);
-                        printf("%s",en_new_course);
-                        char course_id[20];
+                        char en_course_id[20];
+                        recv(client_socket, en_course_id, sizeof(en_course_id), 0);
+                        printf("%s", en_course_id);
+                        char course_id[50];
                         getchar();
-                        scanf("%[^\n]",course_id);
-                        send(client_socket,course_id,sizeof(course_id),0);
+                        scanf("%[^\n]", course_id);
+                        send(client_socket, course_id, sizeof(course_id), 0);
+                        char send_status[100];
+                        recv(client_socket, send_status, sizeof(send_status), 0);
+                        printf("%s\n", send_status);
                     }
                     // Drop Courses
                     else if (choice == 3)
                     {
+                        char en_course_id[20];
+                        recv(client_socket, en_course_id, sizeof(en_course_id), 0);
+                        printf("%s", en_course_id);
+                        char course_id[50];
+                        getchar();
+                        scanf("%[^\n]", course_id);
+                        send(client_socket, course_id, sizeof(course_id), 0);
+                        char send_status[100];
+                        recv(client_socket, send_status, sizeof(send_status), 0);
+                        printf("%s\n", send_status);
                     }
                     // View Enrolled Course Details
                     else if (choice == 4)
                     {
+                        int ack;
+                        while (1)
+                        {
+                            recv(client_socket, &ack, sizeof(int), 0);
+                            printf("\n");
+                            if (ack == 1)
+                            {
+                                char buffer[sizeof(struct Course)];
+                                recv(client_socket, buffer, sizeof(struct Course), 0);
+                                struct Course course_info;
+                                memcpy(&course_info, buffer, sizeof(struct Course));
+                                printf("Course ID: %s\n", course_info.course_id);
+                                printf("Course Name: %s\n", course_info.course_name);
+                                printf("Faculty ID: %s\n", course_info.faculty_id);
+                                printf("Remaining Seats: %s\n\n", course_info.rem_seats);
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
                     }
                     // Change Password
                     else if (choice == 5)
@@ -237,14 +276,22 @@ int main()
                     // LogOut and Exit
                     else if (choice == 6)
                     {
+                        char bye_bye[40];
+                        recv(client_socket, bye_bye, sizeof(bye_bye), 0);
+                        printf("%s", bye_bye);
+                        sleep(1);
+                        char bye[20];
+                        recv(client_socket, bye, sizeof(bye), 0);
+                        printf("%s", bye);
                         exit(0);
                     }
                 }
             }
             // Authentication failed Student
-            else{
+            else
+            {
                 recv(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
-                printf("%s\n",auth_succ_fail);
+                printf("%s\n", auth_succ_fail);
             }
         }
         // faculty
@@ -253,8 +300,8 @@ int main()
             recv(client_socket, &auth_status, sizeof(int), 0);
             if (auth_status == 1)
             {
-                recv(client_socket,auth_succ_fail,sizeof(auth_succ_fail),0);
-                printf("%s\n",auth_succ_fail);
+                recv(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
+                printf("%s\n", auth_succ_fail);
                 printf("Hello, %s! Welcome..\n", username);
                 char faculty_menu[200];
                 while (1)
@@ -338,7 +385,7 @@ int main()
                     {
                         char en_course_id[30];
                         recv(client_socket, en_course_id, sizeof(en_course_id), 0);
-                        printf("%s\n", en_course_id);
+                        printf("%s", en_course_id);
                         char take_course_id[20];
                         getchar();
                         scanf("%[^\n]", take_course_id);
@@ -402,6 +449,13 @@ int main()
                     // LogOut and Exit
                     else if (choice == 6)
                     {
+                        char bye_bye[40];
+                        recv(client_socket, bye_bye, sizeof(bye_bye), 0);
+                        printf("%s", bye_bye);
+                        sleep(1);
+                        char bye[20];
+                        recv(client_socket, bye, sizeof(bye), 0);
+                        printf("%s", bye);
                         exit(0);
                     }
                 }
@@ -410,7 +464,7 @@ int main()
             else
             {
                 recv(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
-                printf("%s\n",auth_succ_fail);
+                printf("%s\n", auth_succ_fail);
             }
         }
         // admin
@@ -419,11 +473,11 @@ int main()
             recv(client_socket, &auth_status, sizeof(int), 0);
             if (auth_status == 1)
             {
-                recv(client_socket,auth_succ_fail,sizeof(auth_succ_fail),0);
-                printf("%s\n",auth_succ_fail);
+                recv(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
+                printf("%s\n", auth_succ_fail);
 
                 printf("Hello, %s! Welcome..\n", username);
-                char admin_menu[200];
+                char admin_menu[250];
                 while (1)
                 {
                     recv(client_socket, admin_menu, sizeof(admin_menu), 0);
@@ -439,7 +493,7 @@ int main()
                         // Taking student Info
                         {
                             getchar();
-                            printf("Enter Roll No/Log in ID: ");
+                            printf("\nEnter Roll No/Log in ID: ");
                             scanf("%[^\n]", student_info.login_id);
                             getchar();
                             printf("Enter Password: ");
@@ -461,6 +515,9 @@ int main()
                             char buffer[sizeof(struct Student)];
                             memcpy(buffer, &student_info, sizeof(struct Student));
                             send(client_socket, buffer, sizeof(struct Student), 0);
+                            char succ[50];
+                            recv(client_socket, succ, sizeof(succ), 0);
+                            printf("%s", succ);
                         }
                     }
                     // View Student Details
@@ -480,13 +537,13 @@ int main()
                             recv(client_socket, buffer, sizeof(struct Student), 0);
                             struct Student student_info;
                             memcpy(&student_info, buffer, sizeof(struct Student));
-                            printf("Student Details\n");
-                            printf("Student Roll No/Log in ID: %s\n", student_info.login_id);
-                            printf("Student Password: %s\n", student_info.password);
-                            printf("Student Name: %s\n", student_info.name);
-                            printf("Student age: %s\n", student_info.age);
-                            printf("Student Email ID: %s\n", student_info.email_id);
-                            printf("Student Address: %s\n", student_info.address);
+                            printf("\nStudent Details\n");
+                            printf("\nRoll No/Log in ID: %s\n", student_info.login_id);
+                            printf("Password: %s\n", student_info.password);
+                            printf("Name: %s\n", student_info.name);
+                            printf("age: %s\n", student_info.age);
+                            printf("Email ID: %s\n", student_info.email_id);
+                            printf("Address: %s\n", student_info.address);
                             printf("Account Status: %s\n", student_info.activate_stu);
                         }
                         else
@@ -503,7 +560,7 @@ int main()
                         // Taking faculty Info
                         {
                             getchar();
-                            printf("Enter Log in ID: ");
+                            printf("\nEnter Log in ID: ");
                             scanf("%[^\n]", faculty_info.login_id);
                             getchar();
                             printf("Enter Password: ");
@@ -527,6 +584,9 @@ int main()
                             char buffer[sizeof(struct Faculty)];
                             memcpy(buffer, &faculty_info, sizeof(struct Faculty));
                             send(client_socket, buffer, sizeof(struct Faculty), 0);
+                            char succ[40];
+                            recv(client_socket, succ, sizeof(succ), 0);
+                            printf("%s", succ);
                         }
                     }
                     // View Faculty Details
@@ -546,14 +606,14 @@ int main()
                             recv(client_socket, buffer, sizeof(struct Faculty), 0);
                             struct Faculty faculty_info;
                             memcpy(&faculty_info, buffer, sizeof(struct Faculty));
-                            printf("Student Details\n");
-                            printf("Student Roll No/Log in ID: %s\n", faculty_info.login_id);
-                            printf("Student Password: %s\n", faculty_info.password);
-                            printf("Student Name: %s\n", faculty_info.name);
-                            printf("Student department: %s\n", faculty_info.department);
-                            printf("Student designation: %s\n", faculty_info.designation);
-                            printf("Student Email ID: %s\n", faculty_info.email_id);
-                            printf("Student Address: %s\n", faculty_info.address);
+                            printf("\nFaculty Details\n");
+                            printf("\nLog in ID: %s\n", faculty_info.login_id);
+                            printf("Password: %s\n", faculty_info.password);
+                            printf("Name: %s\n", faculty_info.name);
+                            printf("department: %s\n", faculty_info.department);
+                            printf("designation: %s\n", faculty_info.designation);
+                            printf("Email ID: %s\n", faculty_info.email_id);
+                            printf("Address: %s\n", faculty_info.address);
                         }
                         else
                         {
@@ -655,6 +715,13 @@ int main()
                     // LogOut and Exit
                     else if (choice == 9)
                     {
+                        char bye_bye[40];
+                        recv(client_socket, bye_bye, sizeof(bye_bye), 0);
+                        printf("%s", bye_bye);
+                        sleep(1);
+                        char bye[20];
+                        recv(client_socket, bye, sizeof(bye), 0);
+                        printf("%s", bye);
                         exit(0);
                     }
                 }
@@ -663,7 +730,7 @@ int main()
             else
             {
                 recv(client_socket, auth_succ_fail, sizeof(auth_succ_fail), 0);
-                printf("%s\n",auth_succ_fail);
+                printf("%s\n", auth_succ_fail);
             }
         }
     }
